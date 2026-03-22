@@ -1,8 +1,8 @@
 # CrimsonDesertTools
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
-![Language](https://img.shields.io/badge/Language-Cpp-purple.svg)
-![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)
+![Language](https://img.shields.io/badge/Language-C%23-purple.svg)
+![Platform](https://img.shields.io/badge/Platform-Windows-teal.svg)
 
 A comprehensive toolset for analyzing and extracting resources from **Crimson Desert** (BlackSpace Engine).
 
