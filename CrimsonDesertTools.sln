@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37012.4
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrimsonDesertTools", "CrimsonDesertTools\CrimsonDesertTools.csproj", "{145FCB11-B8BF-4CCA-B67A-B0B21B572603}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{145FCB11-B8BF-4CCA-B67A-B0B21B572603}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{145FCB11-B8BF-4CCA-B67A-B0B21B572603}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{145FCB11-B8BF-4CCA-B67A-B0B21B572603}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{145FCB11-B8BF-4CCA-B67A-B0B21B572603}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {997F30AC-604D-4BA7-8188-E56FC20CBF5C}
+	EndGlobalSection
+EndGlobal
