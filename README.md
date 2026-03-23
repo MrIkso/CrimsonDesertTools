@@ -6,8 +6,9 @@
 
 A comprehensive toolset for analyzing and extracting resources from **Crimson Desert** (BlackSpace Engine).
 
-Thanks to [lazorr410](https://github.com/lazorr410/crimson-desert-unpacker) for key encryption genereatror algorithm
-
+## Special Thanks
+- [lazorr410](https://github.com/lazorr410/crimson-desert-unpacker) for key encryption genereatror algorithm
+- [LukeFZ](https://github.com/LukeFZ/pycrimson) for better .papgt file structure
 
 ## License
 

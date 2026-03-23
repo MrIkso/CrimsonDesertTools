@@ -1,4 +1,5 @@
 ﻿using CrimsonDesertTools.Parser;
+using CrimsonDesertTools.Parser.PackGroupTree;
 using System.Text;
 
 namespace CrimsonDesertTools
@@ -106,7 +107,7 @@ namespace CrimsonDesertTools
                         var pamt = new PamtReader().Read(pamtPath);
                         bool crcMatch = pamt.HeaderCrc == info.PamtCrc;
                         string crcStatus = crcMatch ? "MATCH" : "MISMATCH!";
-                        Console.WriteLine($"         └─ File: {groupName}/0.pamt | Header CRC: 0x{pamt.HeaderCrc:X8} ({crcStatus})");
+                        Console.WriteLine($"         └─ File: {groupName}/0.pamt |Language: {info.PackGroupLanguageType}| Header CRC: 0x{pamt.HeaderCrc:X8} ({crcStatus})");
                     }
                     catch {
                         Console.WriteLine($"         └─ [Error] Failed to read PAMT"); 

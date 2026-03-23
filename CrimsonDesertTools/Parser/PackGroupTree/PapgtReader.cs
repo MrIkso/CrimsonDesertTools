@@ -1,44 +1,8 @@
 ﻿using CrimsonDesertTools.Utils;
 using System.Text;
 
-namespace CrimsonDesertTools.Parser
+namespace CrimsonDesertTools.Parser.PackGroupTree
 {
-    /// <summary>
-    /// Represents the Header of a .papgt file (12 bytes).
-    /// </summary>
-    public struct PapgtHeader
-    {
-        public uint Unknown;
-        public uint FileCrc;    // Checksum of the data following the header
-        public byte GroupCount; // Number of .pamt groups
-        public ushort Unknown1;
-        public byte Pad;        // Padding byte (0x00)
-    }
-
-    /// <summary>
-    /// Contains metadata information for a specific .pamt file.
-    /// </summary>
-    public struct PackMetaInfo
-    {
-        public uint FolderHash; // Hash of the folder name
-        public uint NameOffset; // Offset within the string block
-        public uint PamtCrc;    // Expected checksum of the corresponding 0.pamt file
-    }
-
-    /// <summary>
-    /// Data structure representing the parsed PackGroupTree file.
-    /// </summary>
-    public class PapgtFile
-    {
-        public PapgtHeader Header;
-        public List<PackMetaInfo> GroupInfos = new List<PackMetaInfo>();
-        public List<string> FolderNames = new List<string>();
-
-        /// <summary>
-        /// Helper to get a group's folder name by its index.
-        /// </summary>
-        public string GetGroupName(int index) => (index >= 0 && index < FolderNames.Count) ? FolderNames[index] : "unknown";
-    }
 
     public class PapgtReader
     {
@@ -79,7 +43,9 @@ namespace CrimsonDesertTools.Parser
                 {
                     papgt.GroupInfos.Add(new PackMetaInfo
                     {
-                        FolderHash = br.ReadUInt32(),
+                        IsOptional = br.ReadByte(),
+                        PackGroupLanguageType = (PackGroupLanguageType)br.ReadUInt16(),
+                        Zero = br.ReadByte(),
                         NameOffset = br.ReadUInt32(),
                         PamtCrc = br.ReadUInt32()
                     });
