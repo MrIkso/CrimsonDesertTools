@@ -1,4 +1,5 @@
-﻿using CrimsonDesertTools.Parser;
+﻿using CrimsonDesertTools.Packer;
+using CrimsonDesertTools.Parser;
 using CrimsonDesertTools.Parser.PackGroupTree;
 using System.Text;
 
@@ -41,7 +42,9 @@ namespace CrimsonDesertTools
                     case "print_groups":
                         ExecutePrintGroups(filePath);
                         break;
-
+                    case "pack_archive":
+                        ExecutePackArchive(filePath, args[2]);
+                        break;
                     default:
                         PrintUsage();
                         break;
@@ -104,9 +107,11 @@ namespace CrimsonDesertTools
                 {
                     try
                     {
-                        var pamt = new PamtReader().Read(pamtPath);
+                        var (pamt, resolver, dirResolver) = LoadPamtContext(pamtPath);    
                         bool crcMatch = pamt.HeaderCrc == info.PamtCrc;
                         string crcStatus = crcMatch ? "MATCH" : "MISMATCH!";
+                        string dirName = dirResolver.GetFullName(pamt.Folders[0].NameOffset);
+                        byte[] byteArray = Encoding.UTF8.GetBytes(dirName);
                         Console.WriteLine($"         └─ File: {groupName}/0.pamt |Language: {info.PackGroupLanguageType}| Header CRC: 0x{pamt.HeaderCrc:X8} ({crcStatus})");
                     }
                     catch {
@@ -114,6 +119,12 @@ namespace CrimsonDesertTools
                     }
                 }
             }
+        }
+
+        private static void ExecutePackArchive(string rootGameDir, string unpackResourcePath)
+        {
+            ArchiveGenerator archiveGenerator = new ArchiveGenerator(rootGameDir);
+            archiveGenerator.PackArchive(unpackResourcePath);
         }
 
         #endregion
@@ -167,10 +178,15 @@ namespace CrimsonDesertTools
             Console.WriteLine("  info          - Generates 'meta_info.txt' with all file details.");
             Console.WriteLine("  unpack        - Decrypts and extracts files from .paz archives.");
             Console.WriteLine("  print_groups  - Displays the 0.papgt structure and verifies PAMT hashes.");
+            Console.WriteLine("  pack_archive   - Experimental: Packs a folder into a new .paz/.pamt group");
+            Console.WriteLine("                   and patches the global 0.papgt index.");
+            Console.WriteLine("                   <path1>: Game root directory (containing 'meta' folder).");
+            Console.WriteLine("                   <path2>: Directory containing files to pack.");
             Console.WriteLine("\nExamples:");
             Console.WriteLine("  CrimsonDesertTools.exe info 0005/0.pamt");
             Console.WriteLine("  CrimsonDesertTools.exe unpack 0030/0.pamt ./extracted_data");
             Console.WriteLine("  CrimsonDesertTools.exe print_groups meta/0.papgt");
+            Console.WriteLine("  CrimsonDesertTools.exe pack_archive  \"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crimson Desert\" \"D:\\MyModSource\"");
             Console.WriteLine("\n" + new string('=', 60));
         }
 

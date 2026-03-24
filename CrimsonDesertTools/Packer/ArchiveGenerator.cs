@@ -1,4 +1,5 @@
 ﻿using CrimsonDesertTools.Parser;
+using CrimsonDesertTools.Parser.PackGroupTree;
 using CrimsonDesertTools.Utils;
 using System.Text;
 
@@ -19,22 +20,47 @@ namespace CrimsonDesertTools.Packer
     {
         public uint CRC { get; set; }
         public int Size { get; set; }
-        public List<PazArchiveEntry> entries { get; set; }
+        public List<PazArchiveEntry> Entries { get; set; }
     }
 
     public class ArchiveGenerator
     {
-        private readonly string _inputRootDir;
+        private readonly string _gameRootDir;
 
-        public ArchiveGenerator(string rootDir)
+        public ArchiveGenerator(string gameRootDir)
         {
-            _inputRootDir = rootDir;
+            _gameRootDir = gameRootDir;
         }
 
-        public void PackArchive(string saveDir)
+        public void PackArchive(string unpackResourceRootDir)
         {
-            PazArchive pazArchive = GenerateArchive(saveDir, 0);
-            CreatePackMeta(saveDir, pazArchive);
+            string folderName = "0254";
+            string saveDir = Path.Combine(_gameRootDir, folderName);
+
+            Directory.CreateDirectory(saveDir);
+
+            PazArchive pazArchive = GenerateArchive(saveDir, unpackResourceRootDir, 0);
+            uint pamtCrc = CreatePackMeta(saveDir, pazArchive);
+
+            string papgtFile = Path.Combine(_gameRootDir, "meta", "0.papgt");
+            string backupDir = Path.Combine(_gameRootDir, "backup");
+            string backupFile = Path.Combine(backupDir, "0.papgt");
+
+            Directory.CreateDirectory(backupDir);
+
+            if (!File.Exists(backupFile))
+            {
+                File.Copy(papgtFile, backupFile);
+                Console.WriteLine("Vanilla 0.papgt saved to backup folder.");
+            }
+            else
+            {
+                string currentBackup = Path.Combine(backupDir, "0.papgt.last");
+                File.Copy(papgtFile, currentBackup, true); 
+            }
+
+            PatchPapgt(papgtFile, pamtCrc, folderName);
+            Console.WriteLine($"Mod archive located in: {saveDir}");
         }
 
         private ushort CalculateFlags(EncryptionMethod enc, CompressionMethod comp)
@@ -42,7 +68,7 @@ namespace CrimsonDesertTools.Packer
             return (ushort)((((byte)enc) << 4) | ((byte)comp));
         }
 
-        private PazArchive GenerateArchive(string saveDir, ushort archiveIndex)
+        private PazArchive GenerateArchive(string saveDir, string resourcesDir, ushort archiveIndex)
         {
             string pazPath = Path.Combine(saveDir, $"{archiveIndex}.paz");
             var archiveEntries = new List<PazArchiveEntry>();
@@ -52,14 +78,14 @@ namespace CrimsonDesertTools.Packer
                 Directory.CreateDirectory(saveDir);
             }
 
-            string[] allFiles = Directory.GetFiles(_inputRootDir, "*.*", SearchOption.AllDirectories);
+            string[] allFiles = Directory.GetFiles(resourcesDir, "*.*", SearchOption.AllDirectories);
 
             using (FileStream fs = new FileStream(pazPath, FileMode.Create, FileAccess.Write))
             using (BinaryWriter bw = new BinaryWriter(fs))
             {
                 foreach (string fullFilePath in allFiles)
                 {
-                    string relativeFile = Path.GetRelativePath(_inputRootDir, fullFilePath);
+                    string relativeFile = Path.GetRelativePath(resourcesDir, fullFilePath);
                     string dirPath = Path.GetDirectoryName(relativeFile)?.Replace("\\", "/") ?? "";
                     string fileName = Path.GetFileName(relativeFile);
 
@@ -74,7 +100,7 @@ namespace CrimsonDesertTools.Packer
                         DecompressSize = originalData.Length,
                         CompressSize = dataToWrite.Length,
                         PazIndex = archiveIndex,
-                        Flags = CalculateFlags(EncryptionMethod.None, CompressionMethod.Partial)
+                        Flags = CalculateFlags(EncryptionMethod.None, CompressionMethod.None)
                     };
 
                     bw.Write(dataToWrite);
@@ -99,23 +125,23 @@ namespace CrimsonDesertTools.Packer
             PazArchive pazArchive = new PazArchive();
             pazArchive.CRC = pazHash;
             pazArchive.Size = pazArchiveData.Length;
-            pazArchive.entries = archiveEntries;
+            pazArchive.Entries = archiveEntries;
             return pazArchive;
         }
 
 
-        // crate pack meta file .pamt from one .paz archive
-        private void CreatePackMeta(string saveDir, PazArchive archive)
+        // create pack meta file .pamt from one .paz archive
+        private uint CreatePackMeta(string saveDir, PazArchive archive)
         {
             string pamtPath = Path.Combine(saveDir, "0.pamt");
 
-            var sortedFiles = archive.entries.OrderBy(e => e.DirectoryPath).ToList();
+            var sortedFiles = archive.Entries.OrderBy(e => e.DirectoryPath).ToList();
 
             using (MemoryStream bodyMs = new MemoryStream())
             using (BinaryWriter bodyBw = new BinaryWriter(bodyMs))
             {
                 // write paz info
-                bodyBw.Write((uint)archive.entries[0].PazIndex);
+                bodyBw.Write((uint)archive.Entries[0].PazIndex);
                 bodyBw.Write(archive.CRC);
                 bodyBw.Write((uint)archive.Size);
 
@@ -186,13 +212,105 @@ namespace CrimsonDesertTools.Packer
                 using (BinaryWriter bw = new BinaryWriter(fs))
                 {
                     bw.Write(headerCrc);
-                    bw.Write((uint)1);
-                    bw.Write((uint)0); // Seed
+                    bw.Write((uint)1); // paz count
+                    bw.Write((uint)0); // seed, 0 if data not encrypted
                     bw.Write(finalBody);
                 }
 
                 Console.WriteLine($"Pack metadata created: {pamtPath}");
+                return headerCrc;
             }
+        }
+
+
+        private void PatchPapgt(string papgtPath, uint modPamtHash, string newFolderName = "0254")
+        {
+            PapgtReader reader = new PapgtReader();
+            PapgtFile papgt = reader.Read(papgtPath);
+
+            if (papgt.Header.GroupCount >= 255)
+            {
+                throw new Exception("Maximum group count (255) reached. Cannot add more groups.");
+            }
+
+            if (papgt.FolderNames.Contains(newFolderName))
+            {
+                Console.WriteLine($"Group {newFolderName} already exists. Updating its CRC...");
+                int idx = papgt.FolderNames.IndexOf(newFolderName);
+                var info = papgt.GroupInfos[idx];
+                info.PamtCrc = modPamtHash;
+                papgt.GroupInfos[idx] = info;
+            }
+            else
+            {
+                Console.WriteLine($"Adding new group: {newFolderName}");
+                papgt.FolderNames.Add(newFolderName);
+                uint newOffset = (uint)(papgt.GroupInfos.Count * 5);
+
+                papgt.GroupInfos.Add(new PackMetaInfo
+                {
+                    IsOptional = 0,
+                    PackGroupLanguageType = PackGroupLanguageType.ALL,
+                    Zero = 0,
+                    NameOffset = newOffset,
+                    PamtCrc = modPamtHash
+                });
+
+                var header = papgt.Header;
+                header.GroupCount++;
+                papgt.Header = header;
+            }
+
+            using (MemoryStream ms = new MemoryStream())
+            using (BinaryWriter bw = new BinaryWriter(ms))
+            {
+                // skip header
+                bw.Write(new byte[12]);
+
+                // write meta info block
+                foreach (var info in papgt.GroupInfos)
+                {
+                    bw.Write(info.IsOptional);
+                    bw.Write((ushort)info.PackGroupLanguageType);
+                    bw.Write(info.Zero);
+                    bw.Write(info.NameOffset);
+                    bw.Write(info.PamtCrc);
+                }
+
+                // calculate new  folders sting block size
+                uint stringSize = (uint)(papgt.FolderNames.Count * 5);
+                bw.Write(stringSize);
+
+                // write folders bloks
+                foreach (var name in papgt.FolderNames)
+                {
+                    byte[] nameBytes = new byte[5];
+                    byte[] ascii = Encoding.ASCII.GetBytes(name);
+                    Array.Copy(ascii, nameBytes, Math.Min(ascii.Length, 4));
+                    bw.Write(nameBytes);
+                }
+
+                byte[] fullFile = ms.ToArray();
+                int payloadSize = fullFile.Length - 12;
+                byte[] payload = new byte[payloadSize];
+                Buffer.BlockCopy(fullFile, 12, payload, 0, payloadSize);
+
+                uint newFileCrc = PaChecksum.Calculate(payload);
+
+                // write data
+                using (FileStream fs = new FileStream(papgtPath, FileMode.Create))
+                using (BinaryWriter finalBw = new BinaryWriter(fs))
+                {
+                    finalBw.Write(papgt.Header.Unknown);
+                    finalBw.Write(newFileCrc);
+                    finalBw.Write(papgt.Header.GroupCount);
+                    finalBw.Write(papgt.Header.Unknown1);
+                    finalBw.Write(papgt.Header.Pad);
+                    finalBw.Write(fullFile, 12, fullFile.Length - 12);
+                }
+            }
+
+            Console.WriteLine($"0.papgt successfully patched!");
         }
     }
 }
